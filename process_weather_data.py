@@ -67,11 +67,13 @@ for postal_code_key in postal_code_keys.keys():
         print(list_postal_codes)
         sdf = rdf.loc[df.index.isin(list_postal_codes, level=0)]
 
-        # file generating function. I wanted to partial to fix the argument for `sdf`
+        # p_generate_files function. I wanted to use functools.partial() to fix the argument for `sdf`
         # from the previous step but for some reason it was able to run as part of
         # executor.map, hence i haven't isolate the function.
+
         # I pass the sdf as default argument. Also I haven't converted the date in to pandas object
         # data type as it would consume more memory
+
         def p_generate_files(postal_code: str, result_df: pd.DataFrame = sdf) -> None:
             tmp_df = result_df.filter(like=str(postal_code), axis=0)
             start_date = tmp_df.index.unique(level='date').min().to_pydatetime().strftime('%b').upper()
