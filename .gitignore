@@ -1,0 +1,8 @@
+*.json
+*.csv
+*.pdf
+.ipynb_checkpoints
+__pycache__/
+.idea
+data
+.DS_Store
