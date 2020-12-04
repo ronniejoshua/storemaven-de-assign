@@ -66,24 +66,93 @@ data_set as (
         ) = 2020
     ORDER BY d.date ASC
 ),
-
 -- https://tapoueh.org/blog/2018/02/find-the-number-of-the-longest-continuously-rising-days-for-a-stock/
 -- https://learnsql.com/blog/how-to-calculate-length-of-series-in-sql/
-result_set as (SELECT  *,
-            RANK() OVER (ORDER BY c_date) AS row_number,
-            DATE_ADD(c_date, INTERVAL -RANK() OVER (ORDER BY c_date) DAY)  AS date_group
-FROM data_set
-order by d_date asc
+-- https://stackoverflow.com/questions/36927685/count-number-of-consecutive-occurrence-of-values-in-table
+restric_streak as (
+    SELECT *,
+        RANK() OVER (
+            ORDER BY c_date
+        ) AS row_number,
+        DATE_ADD(
+            c_date,
+            INTERVAL - RANK() OVER (
+                ORDER BY c_date
+            ) DAY
+        ) AS date_group
+    FROM data_set
+    order by d_date asc
+),
+cancel_sp_result as (
+    -- select * from result_set;
+    SELECT COUNT(*) AS days_streak,
+        IFNULL(CAST(MIN(c_date) AS String), "No Restriction") AS min_date,
+        IFNULL(CAST(MAX(c_date) AS String), "No Restriction") AS max_date
+    FROM restric_streak
+    GROUP BY date_group
+),
+diffs as (
+    SELECT d_date,
+        daily_deaths,
+        lag(daily_deaths, 1) over(
+            order by d_date
+        ) as daily_death_previous_day,
+        case
+            when daily_deaths - lag(daily_deaths, 1) over(
+                order by d_date
+            ) < 0 then '-'
+            when daily_deaths - lag(daily_deaths, 1) over(
+                order by d_date
+            ) > 0 then '+'
+            else '0'
+        end as diff
+    FROM data_set
+    order by d_date asc
+),
+cte AS (
+    SELECT d_date,
+        diff,
+        SUM(
+            CASE
+                WHEN diff = s.prev THEN 0
+                ELSE 1
+            END
+        ) OVER(
+            ORDER BY d_date
+        ) as grp
+    FROM (
+            SELECT *,
+                LAG(diff) OVER(
+                    ORDER BY d_date
+                ) as prev
+            FROM diffs
+        ) as s
+),
+decrease_death as (
+    SELECT diff,
+        COUNT(*) as cnt,
+        min(d_date) as start_date,
+        max(d_date) as end_date
+    FROM cte
+    GROUP BY grp,
+        diff
+    ORDER BY grp
 )
-
--- select * from result_set;
-
-SELECT  COUNT(*) AS days_streak,
-        MIN (c_date) AS min_date,
-        MAX (c_date) AS max_date
-FROM result_set
-GROUP BY date_group;
-
+select *
+from (
+        select *
+        from decrease_death
+        where diff = '-'
+        order by cnt desc
+    )
+    cross join (
+        select *
+        from cancel_sp_result
+        where min_date not like 'No Restriction'
+    )
+where start_date >= cast(min_date as date)
+    and end_date <= cast(max_date as date)
+order by cnt desc
 
 
 
@@ -109,6 +178,8 @@ FROM pop AS p
 where r.country_name is not null
 ORDER BY p.pop_data_2019 DESC
 Limit 50
+
+
 -- In how many 2020 dates have we seen a daily confirmed dead cases which are bigger than 100 
 -- (in the US only), and a positive change from baseline of grocery and pharmacy mobility rate (in the US only)
 
@@ -141,6 +212,6 @@ FROM us_dead_cases AS ud
     AND ud.country_territory_code = ugp.country_territory_code
 WHERE ugp.avg_grocery_and_pharmacy_percent_change_from_baseline > 0
 
-`bigquery-public-data.covid19_google_mobility.mobility_report`
-`bigquery-public-data.covid19_govt_response.oxford_policy_tracker`
-`bigquery-public-data.covid19_ecdc.covid_19_geographic_distribution_worldwide` 
+--`bigquery-public-data.covid19_google_mobility.mobility_report`
+--`bigquery-public-data.covid19_govt_response.oxford_policy_tracker`
+--`bigquery-public-data.covid19_ecdc.covid_19_geographic_distribution_worldwide`

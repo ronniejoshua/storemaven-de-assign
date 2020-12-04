@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import os
@@ -10,6 +13,11 @@ drive = GoogleDrive(gauth)
 
 if __name__ == "__main__":
 
+    """
+    Uploading files from local folder to google drive in a specific folder.
+    Using multi-threading to speed up the process. Uploads file in batches. 
+    """
+
     # View all folders and file in your Google Drive
     fileList = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
     for file in fileList:
@@ -17,6 +25,7 @@ if __name__ == "__main__":
         # Get the folder ID that you want
         if file['title'] == "storemaven_data":
             fileID = file['id']
+
 
     def mt_file_uploader(file, folder_id=fileID):
         f = drive.CreateFile({
@@ -26,6 +35,7 @@ if __name__ == "__main__":
         })
         f.SetContentFile(os.path.join('./data', file))
         f.Upload()
+
 
     files_in_local_folder = os.listdir('./data')
     chunks = [files_in_local_folder[x:x + 500] for x in range(0, len(files_in_local_folder), 500)]
