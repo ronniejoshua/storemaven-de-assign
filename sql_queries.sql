@@ -15,10 +15,13 @@ ORDER BY postal_code,
 -- Pull the total amount of confirmed cases and deaths of COVID-19 in France and Germany between March 
 -- and May in a monthly granularity. The output should be broken down by GEO
 
-SELECT FORMAT_DATETIME("%B", date) AS month,
+SELECT Extract(
+        MONTH
+        FROM date
+    ) AS month,
     countries_and_territories,
-    SUM(confirmed_cases) AS total_confirmed_cases,
-    SUM(deaths) AS total_deaths
+    SUM(daily_confirmed_cases) AS total_confirmed_cases,
+    SUM(daily_deaths) AS total_deaths
 FROM `bigquery-public-data.covid19_ecdc.covid_19_geographic_distribution_worldwide`
 WHERE country_territory_code IN ('FRA', 'DEU')
     AND EXTRACT(
